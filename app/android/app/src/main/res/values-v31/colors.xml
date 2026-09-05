@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+：莫奈版图标背景跟随壁纸取色（accent1 中调，保证白色字形对比度）；低版本回退 #828282 品牌灰 -->
+    <color name="ic_launcher_background_monet">@android:color/system_accent1_600</color>
+</resources>

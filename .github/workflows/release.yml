@@ -1,0 +1,90 @@
+name: Release
+
+# 打 v* tag 推送时自动构建并发布 Release；
+# workflow_dispatch 用于手动验证构建（产物上传为 workflow artifact，不创建 Release）
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      # Windows 上提交的 gradlew 可能丢失可执行位，CI 里强制兜底
+      - name: Make gradlew executable
+        run: chmod +x app/android/gradlew
+
+      # tag 触发时用 tag 名（去掉 v 前缀）作为版本号；
+      # 手动触发时回退读取 build.gradle.kts 中的 versionName
+      - name: Determine version
+        run: |
+          if [[ "${GITHUB_REF_NAME}" =~ ^v[0-9] ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/android/app/build.gradle.kts)
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Building version $VERSION"
+
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > "${RUNNER_TEMP}/betteresurfing.keystore"
+
+      - name: Build release APKs
+        working-directory: app/android
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/betteresurfing.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Collect artifacts
+        run: |
+          SRC=app/android/app/build/outputs/apk/release
+          OUT="${RUNNER_TEMP}/release-arts"
+          mkdir -p "$OUT"
+          for f in "$SRC"/app-*-release.apk; do
+            abi=$(basename "$f" | sed -E 's/^app-(.+)-release\.apk$/\1/')
+            cp "$f" "$OUT/BetterEsurfing-v${VERSION}-${abi}.apk"
+          done
+          (cd "$OUT" && sha256sum BetterEsurfing-*.apk > SHA256SUMS.txt)
+          ls -la "$OUT"
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ runner.temp }}/release-arts/BetterEsurfing-*.apk
+            ${{ runner.temp }}/release-arts/SHA256SUMS.txt
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+
+      # 手动触发的验证运行：产物作为 workflow artifact 供下载检查
+      - name: Upload build artifacts (manual run)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apks-v${{ env.VERSION }}
+          path: ${{ runner.temp }}/release-arts/

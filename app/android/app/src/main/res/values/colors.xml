@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 启动图标背景两套：品牌灰固定色 / 莫奈取色（API 31+ 覆盖为 system_accent1_600，低版本回退品牌灰） -->
+    <color name="ic_launcher_background">#828282</color>
+    <color name="ic_launcher_background_monet">#828282</color>
+    <color name="be_window">#FDFBFF</color>
+</resources>

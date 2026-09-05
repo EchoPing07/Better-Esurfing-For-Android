@@ -1,0 +1,19 @@
+# 行尾与二进制规范化（跨平台协作 / CI 必需）
+* text=auto
+
+# 脚本行尾锁死：gradlew 必须 LF（Windows 上生成推到 GitHub 后，
+# ubuntu CI 会因 CRLF 报 bad interpreter）；.bat 必须 CRLF
+gradlew text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二进制
+*.jar binary
+*.aar binary
+*.apk binary
+*.keystore binary
+*.jks binary
+*.png binary
+*.webp binary
+*.jpg binary

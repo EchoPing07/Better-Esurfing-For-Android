@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BetterES</string>
+    <string name="action_reauth">重新认证</string>
+    <string name="action_stop">停止</string>
+</resources>
